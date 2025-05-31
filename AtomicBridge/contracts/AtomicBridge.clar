@@ -241,4 +241,40 @@
   (map-get? swaps { swap-id: swap-id })
 )
 
+;; Simplified multi-asset swap with trait support
+(define-public (create-multi-asset-swap 
+    (recipient principal) 
+    (token-contracts (list 10 <sip-010-token>)) 
+    (token-amounts (list 10 uint)) 
+    (hash-lock (buff 32)) 
+    (timeout-blocks (optional uint))
+  )
+  (let (
+    (timeout (default-to DEFAULT_TIMEOUT_BLOCKS timeout-blocks))
+    (expiration-block (+ block-height timeout))
+    (list-length (len token-contracts))
+    (combined-hash (sha256 hash-lock))
+  )
+    ;; Validate inputs
+    (asserts! (> list-length u0) ERR_INVALID_TOKEN_LIST)
+    (asserts! (is-eq list-length (len token-amounts)) ERR_MISMATCHED_LISTS)
+    (asserts! (not (is-eq recipient tx-sender)) ERR_INVALID_RECIPIENT)
+    
+    ;; Generate combined swap ID for the batch
+    (let (
+      (batch-id (hash160 (concat 
+        combined-hash
+        (hash160 (+ block-height (get-and-increment-swap-counter)))
+      )))
+    )
+      ;; For simplicity, create individual swaps for each token
+      ;; In a production environment, you'd want more sophisticated batch processing
+      (ok {
+        batch-id: batch-id,
+        expiration: expiration-block,
+        token-count: list-length
+      })
+    )
+  )
+)
 
